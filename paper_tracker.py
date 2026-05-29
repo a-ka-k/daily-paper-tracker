@@ -103,40 +103,51 @@ def send_email(summary_path, downloaded_files, recipient_email):
     sender_password = os.getenv("QQ_PASSWORD")
     
     if not sender_email or not sender_password:
-        print("请配置 .env 文件中的 QQ_EMAIL 和 QQ_PASSWORD")
+        print("错误: 未配置 QQ_EMAIL 或 QQ_PASSWORD")
         return False
+    
+    print(f"正在发送邮件到: {recipient_email}")
+    print(f"发件人: {sender_email}")
     
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = recipient_email
     msg['Subject'] = f"AI & Agent 每日进展 - {get_date_str()}"
     
-    with open(summary_path, "r", encoding="utf-8") as f:
-        summary_content = f.read()
-    
-    msg.attach(MIMEText(summary_content, 'plain', 'utf-8'))
-    
-    with open(summary_path, "rb") as f:
-        part = MIMEApplication(f.read(), Name=os.path.basename(summary_path))
-        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(summary_path)}"'
-        msg.attach(part)
-    
-    for file_path in downloaded_files:
-        with open(file_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
-            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
-            msg.attach(part)
-    
     try:
+        with open(summary_path, "r", encoding="utf-8") as f:
+            summary_content = f.read()
+        
+        msg.attach(MIMEText(summary_content, 'plain', 'utf-8'))
+        
+        with open(summary_path, "rb") as f:
+            part = MIMEApplication(f.read(), Name=os.path.basename(summary_path))
+            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(summary_path)}"'
+            msg.attach(part)
+        
+        for file_path in downloaded_files:
+            try:
+                with open(file_path, "rb") as f:
+                    part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
+                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                    msg.attach(part)
+            except Exception as e:
+                print(f"跳过附件 {file_path}: {e}")
+        
+        print("正在连接 SMTP 服务器...")
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
+        print("正在登录...")
         server.login(sender_email, sender_password)
+        print("正在发送邮件...")
         server.send_message(msg)
         server.quit()
-        print("邮件发送成功！")
+        print("✅ 邮件发送成功！")
         return True
     except Exception as e:
-        print(f"邮件发送失败: {e}")
+        print(f"❌ 邮件发送失败: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
