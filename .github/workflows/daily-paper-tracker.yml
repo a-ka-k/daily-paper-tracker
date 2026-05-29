@@ -1,0 +1,40 @@
+name: Daily Paper Tracker
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  track-papers:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run paper tracker
+      env:
+        QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
+        QQ_PASSWORD: ${{ secrets.QQ_PASSWORD }}
+      run: |
+        python paper_tracker.py
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add papers/
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Add papers for $(date +%Y-%m-%d)" && git push)
+      continue-on-error: true
+
