@@ -29,12 +29,4 @@ jobs:
         QQ_PASSWORD: ${{ secrets.QQ_PASSWORD }}
       run: |
         python paper_tracker.py
-    
-    - name: Commit and push changes
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add papers/
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Add papers for $(date +%Y-%m-%d)" && git push)
-      continue-on-error: true
 
