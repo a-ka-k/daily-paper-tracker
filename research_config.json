@@ -1,0 +1,17 @@
+{
+  "research_areas": [
+    "AI Agent",
+    "Large Language Model",
+    "Autonomous Systems",
+    "Multi-Agent Collaboration"
+  ],
+  "interests": [
+    "科研创新",
+    "工程实践"
+  ],
+  "max_papers": 5,
+  "notification": {
+    "email": "2026204614@qq.com",
+    "enabled": true
+  }
+}
