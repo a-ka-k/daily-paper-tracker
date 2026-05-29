@@ -48,8 +48,8 @@ def set_cell_background_color(cell, color):
 
 def fetch_arxiv_papers(category="cs.AI", max_results=10):
     base_url = "http://export.arxiv.org/api/query"
-    query = f"search_query=cat:{category}&sortBy=submittedDate&sortOrder=descending&max_results={max_results}"
-    url = f"{base_url}?{query}"
+    query = "search_query=cat:" + category + "&sortBy=submittedDate&sortOrder=descending&max_results=" + str(max_results)
+    url = base_url + "?" + query
     
     try:
         response = requests.get(url, timeout=30)
@@ -69,7 +69,7 @@ def fetch_arxiv_papers(category="cs.AI", max_results=10):
             papers.append(paper)
         return papers
     except Exception as e:
-        print(f"获取论文失败: {e}")
+        print("获取论文失败:", e)
         return []
 
 def analyze_paper(paper):
@@ -132,7 +132,8 @@ def analyze_paper(paper):
 
 def generate_word_document(papers, folder_path):
     date_str = get_date_str()
-    doc_path = os.path.join(folder_path, f"AI_Agent_每日论文_{date_str}.docx")
+    doc_name = "AI_Agent_每日论文_" + date_str + ".docx"
+    doc_path = os.path.join(folder_path, doc_name)
     config = load_config()
     
     doc = Document()
@@ -140,21 +141,23 @@ def generate_word_document(papers, folder_path):
     title = doc.add_heading('AI & Agent 每日论文', 0)
     title.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     
-    doc.add_paragraph(f'日期：{date_str}')
+    doc.add_paragraph('日期：' + date_str)
     research_areas_str = ", ".join(config['research_areas'])
-    doc.add_paragraph(f'研究方向：{research_areas_str}')
+    doc.add_paragraph('研究方向：' + research_areas_str)
     doc.add_paragraph()
     
     for idx, paper in enumerate(papers[:config['max_papers']], 1):
         analysis = analyze_paper(paper)
         
-        doc.add_heading(f"论文{idx}：{paper['title']}", 1)
+        paper_title = '论文' + str(idx) + '：' + paper['title']
+        doc.add_heading(paper_title, 1)
         
         table = doc.add_table(rows=5, cols=2)
         table.style = 'Table Grid'
         
         headers = ['标题', '作者', '日期', 'arXiv ID', '关键词']
-        values = [paper['title'], paper['authors'], paper['published'], paper['arxiv_id'], ", ".join(analysis['keywords'])]
+        keywords_str = ", ".join(analysis['keywords'])
+        values = [paper['title'], paper['authors'], paper['published'], paper['arxiv_id'], keywords_str]
         
         for i in range(5):
             table.rows[i].cells[0].text = headers[i]
@@ -214,27 +217,27 @@ def send_email(doc_path, recipient_email):
         print("错误: 未配置 QQ_EMAIL 或 QQ_PASSWORD")
         return False
     
-    print(f"正在发送邮件到: {recipient_email}")
+    print("正在发送邮件到:", recipient_email)
     
     try:
         msg = MIMEMultipart()
         msg['From'] = sender_email
         msg['To'] = recipient_email
-        msg['Subject'] = f"📄 AI & Agent 每日论文 - {get_date_str()}"
+        msg['Subject'] = '📄 AI & Agent 每日论文 - ' + get_date_str()
         
-        body = f"""您好！
+        body = '''您好！
 
-附件是 {get_date_str()} 的 AI & Agent 每日论文总结，包含深度分析。
+附件是 ''' + get_date_str() + ''' 的 AI & Agent 每日论文总结，包含深度分析。
 
 祝您科研顺利！💪
 
-—— AI 每日论文追踪系统"""
+—— AI 每日论文追踪系统'''
 
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         with open(doc_path, "rb") as f:
             part = MIMEApplication(f.read(), Name=os.path.basename(doc_path))
-            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(doc_path)}"'
+            part['Content-Disposition'] = 'attachment; filename="' + os.path.basename(doc_path) + '"'
             msg.attach(part)
         
         print("正在连接 SMTP 服务器...")
@@ -248,7 +251,7 @@ def send_email(doc_path, recipient_email):
         print("✅ 邮件发送成功！")
         return True
     except Exception as e:
-        print(f"❌ 邮件发送失败: {type(e).__name__}: {e}")
+        print("❌ 邮件发送失败:", type(e).__name__, ":", e)
         import traceback
         traceback.print_exc()
         return False
@@ -259,8 +262,9 @@ def main():
     print("=" * 60)
     
     config = load_config()
-    print(f"📌 当前研究方向：{", ".join(config['research_areas'])}")
-    print(f"📌 论文数量：{config['max_papers']} 篇/日")
+    research_areas_str = ", ".join(config['research_areas'])
+    print("📌 当前研究方向：" + research_areas_str)
+    print("📌 论文数量：" + str(config['max_papers']) + " 篇/日")
     print()
     
     print("📥 正在获取最新论文...")
@@ -271,12 +275,12 @@ def main():
         print("❌ 未能获取到论文")
         return
     
-    print(f"✅ 成功获取 {len(papers)} 篇论文")
+    print("✅ 成功获取 " + str(len(papers)) + " 篇论文")
     print()
     
     print("📝 正在生成专业Word文档...")
     doc_path = generate_word_document(papers, folder_path)
-    print(f"✅ Word文档已生成：{doc_path}")
+    print("✅ Word文档已生成：" + doc_path)
     print()
     
     recipient_email = "2026204614@qq.com"
