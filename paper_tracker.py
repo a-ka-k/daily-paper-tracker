@@ -339,7 +339,11 @@ def generate_word_document(papers, folder_path):
     
     summary_final = doc.add_paragraph()
     summary_final.add_run(f'今日共精选 {len(papers[:config["max_papers"]])} 篇最新论文，')
-    summary_final.add_run(f'涵盖 {", ".join([kw for kw in set(sum([generate_expert_analysis(p)['keywords'] for p in papers[:config["max_papers"]]], []))[:3]])} 等方向。')
+    all_keywords = []
+    for p in papers[:config["max_papers"]]:
+        all_keywords.extend(generate_expert_analysis(p)["keywords"])
+    unique_keywords = list(set(all_keywords))[:3]
+    summary_final.add_run(f'涵盖 {", ".join(unique_keywords)} 等方向。')
     
     doc.add_paragraph()
     doc.add_heading('🎯 行动建议', level=2)
