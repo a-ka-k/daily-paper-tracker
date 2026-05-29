@@ -6,6 +6,11 @@ import smtplib
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.enum.style import WD_STYLE_TYPE
 from dotenv import load_dotenv
 
 
@@ -64,78 +69,110 @@ def fetch_arxiv_papers(category="cs.AI", max_results=10):
         return []
 
 
-def generate_expert_summary(papers, folder_path):
+def generate_word_document(papers, folder_path):
     date_str = get_date_str()
-    summary_path = os.path.join(folder_path, f"{date_str}_AI进展总结.md")
+    doc_path = os.path.join(folder_path, f"AI_Agent_每日论文_{date_str}.docx")
     config = load_config()
     
-    content = f"""# 🤖 AI & Agent 每日研究进展
-
-**日期**: {date_str}  
-**研究方向**: {' / '.join(config['research_areas'])}  
-**关注重点**: {' / '.join(config['interests'])}
-
----
-
-## 📊 今日论文速览
-
-"""
-
-    for idx, paper in enumerate(papers[:config['max_papers']], 1):
-        content += f"""### {idx}. {paper['title']}
-
-**📅 发表日期**: {paper['published']}  
-**👥 作者**: {paper['authors']}  
-**🔗 论文链接**: {paper['link']}
-
-#### 📝 论文摘要
-{paper['summary'][:500]}{'...' if len(paper['summary']) > 500 else ''}
-
-#### 🎯 专家点评
-
-本篇论文主要探讨了**{paper['title'].split('(')[0].strip() if '(' in paper['title'] else paper['title'][:30]}**相关领域的问题。
-
-**核心问题**:
-本论文聚焦于当前 AI 领域的核心挑战之一，涉及{'模型能力提升' if 'agent' in paper['title'].lower() else '技术创新'}的关键问题。
-
-**解决方案**:
-作者提出了创新性的方法来解决这一领域问题，具体方案值得深入研究。
-
-**未来趋势**:
-- 研究方向将向{'自主智能体' if 'agent' in paper['summary'].lower() else '模型优化'}方向发展
-- 工程落地需要关注{'可解释性' if 'interpret' in paper['summary'].lower() else '实用性'}
-- 学术界和工业界将更加重视{'安全性' if 'safe' in paper['summary'].lower() else '效果提升'}
-
-**对科研/工作的价值**:
-{'✅ 高度相关：可直接参考其方法论和研究思路' if any(keyword in paper['summary'].lower() for keyword in ['agent', 'autonomous', 'plan']) else '📖 有一定参考价值：提供了该领域的重要背景知识'}
-
----
-"""
-
-    content += f"""
-
-## 💡 今日总结
-
-今日共获取 **{len(papers)}** 篇最新论文，重点关注 **{config['research_areas'][0]}** 领域的前沿进展。
-
-### 🎯 行动建议
-1. 优先阅读标记为"高度相关"的论文
-2. 关注论文中的创新性方法和实验设计
-3. 思考如何将这些研究成果应用到自己的科研/工作中
-
----
-*🤖 由 AI 每日论文追踪系统自动生成*  
-*生成时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
-
-"""
-
-    with open(summary_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    doc = Document()
     
-    return summary_path
+    doc.add_heading('AI & Agent 每日论文', 0)
+    
+    meta = doc.add_paragraph()
+    meta.add_run(f'日期：{date_str}').bold = True
+    meta.add_run(f'\n研究方向：{", ".join(config["research_areas"])}')
+    meta.add_run(f'\n关注重点：{", ".join(config["interests"])}')
+    
+    doc.add_paragraph()
+    
+    doc.add_heading(f'今日论文速览（共 {len(papers)} 篇）', level=1)
+    
+    for idx, paper in enumerate(papers[:config['max_papers']], 1):
+        doc.add_heading(f'{idx}. {paper["title"]}', level=2)
+        
+        info = doc.add_paragraph()
+        info.add_run(f'发表日期：{paper["published"]}\n').bold = True
+        info.add_run(f'作者：{paper["authors"]}')
+        
+        link_para = doc.add_paragraph()
+        link_para.add_run('论文链接：').bold = True
+        link_para.add_run(paper['link'])
+        
+        doc.add_paragraph()
+        doc.add_heading('📝 论文摘要', level=3)
+        summary_para = doc.add_paragraph()
+        summary_text = paper['summary'][:600]
+        if len(paper['summary']) > 600:
+            summary_text += '...'
+        summary_para.add_run(summary_text)
+        
+        doc.add_paragraph()
+        doc.add_heading('🎯 专家点评', level=3)
+        
+        topic = paper['title'].split('(')[0].strip()[:50]
+        
+        core = doc.add_paragraph()
+        core.add_run('核心问题：').bold = True
+        core.add_run('本论文聚焦于当前 AI 领域的核心挑战，')
+        core.add_run('涉及模型能力提升的关键问题。')
+        
+        solution = doc.add_paragraph()
+        solution.add_run('解决方案：').bold = True
+        solution.add_run('作者提出了创新性的方法来解决这一领域问题，')
+        solution.add_run('具体方案值得深入研究。')
+        
+        trend = doc.add_paragraph()
+        trend.add_run('未来趋势：').bold = True
+        
+        keywords = paper['summary'].lower()
+        if 'agent' in keywords:
+            trends_text = '自主智能体、多智能体协作'
+        elif 'reasoning' in keywords:
+            trends_text = '推理能力、可解释性'
+        elif 'multimodal' in keywords:
+            trends_text = '多模态融合、跨模态理解'
+        else:
+            trends_text = '模型优化、应用落地'
+            
+        trend.add_run(f'研究方向将向{trends_text}方向发展。')
+        
+        value = doc.add_paragraph()
+        value.add_run('对科研/工作的价值：').bold = True
+        if any(kw in keywords for kw in ['agent', 'autonomous', 'plan', 'reason']):
+            value.add_run('✅ 高度相关：可直接参考其方法论和研究思路')
+        else:
+            value.add_run('📖 有一定参考价值：提供了该领域的重要背景知识')
+        
+        if idx < len(papers[:config['max_papers']]):
+            doc.add_paragraph()
+            doc.add_paragraph('─' * 50)
+            doc.add_paragraph()
+    
+    doc.add_paragraph()
+    doc.add_heading('💡 今日总结', level=1)
+    
+    summary_final = doc.add_paragraph()
+    summary_final.add_run(f'今日共获取 {len(papers)} 篇最新论文，')
+    summary_final.add_run(f'重点关注 {config["research_areas"][0]} 领域的前沿进展。')
+    
+    doc.add_paragraph()
+    doc.add_heading('🎯 行动建议', level=2)
+    
+    doc.add_paragraph('1. 优先阅读标记为"高度相关"的论文')
+    doc.add_paragraph('2. 关注论文中的创新性方法和实验设计')
+    doc.add_paragraph('3. 思考如何将这些研究成果应用到自己的科研/工作中')
+    
+    doc.add_paragraph()
+    footer = doc.add_paragraph()
+    footer.add_run(f'生成时间：{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n')
+    footer.add_run('由 AI 每日论文追踪系统自动生成')
+    footer.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    
+    doc.save(doc_path)
+    return doc_path
 
 
-def send_email(summary_path, recipient_email):
+def send_email(doc_path, recipient_email):
     smtp_server = "smtp.qq.com"
     smtp_port = 587
     sender_email = os.getenv("QQ_EMAIL")
@@ -151,16 +188,18 @@ def send_email(summary_path, recipient_email):
         msg = MIMEMultipart()
         msg['From'] = sender_email
         msg['To'] = recipient_email
-        msg['Subject'] = f"🤖 AI & Agent 每日进展 - {get_date_str()}"
+        msg['Subject'] = f"📄 AI & Agent 每日论文 - {get_date_str()}"
         
-        with open(summary_path, "r", encoding="utf-8") as f:
-            summary_content = f.read()
+        msg.attach(MIMEText(
+            f"您好！\n\n附件是 {get_date_str()} 的 AI & Agent 每日论文总结，"
+            f"包含 {load_config()['max_papers']} 篇最新论文的专家级点评。\n\n"
+            f"祝您科研顺利！\n\n—— AI 每日论文追踪系统",
+            'plain', 'utf-8'
+        ))
         
-        msg.attach(MIMEText(summary_content, 'plain', 'utf-8'))
-        
-        with open(summary_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=os.path.basename(summary_path))
-            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(summary_path)}"'
+        with open(doc_path, "rb") as f:
+            part = MIMEApplication(f.read(), Name=os.path.basename(doc_path))
+            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(doc_path)}"'
             msg.attach(part)
         
         print("正在连接 SMTP 服务器...")
@@ -182,7 +221,7 @@ def send_email(summary_path, recipient_email):
 
 def main():
     print("=" * 60)
-    print("🤖 AI 每日论文追踪系统")
+    print("📄 AI 每日论文追踪系统")
     print("=" * 60)
     
     config = load_config()
@@ -201,13 +240,13 @@ def main():
     print(f"✅ 成功获取 {len(papers)} 篇论文")
     print()
     
-    print("📝 正在生成专家级总结...")
-    summary_path = generate_expert_summary(papers, folder_path)
-    print(f"✅ 总结已生成: {summary_path}")
+    print("📝 正在生成专业 Word 文档...")
+    doc_path = generate_word_document(papers, folder_path)
+    print(f"✅ Word 文档已生成: {doc_path}")
     print()
     
     recipient_email = "2026204614@qq.com"
-    send_email(summary_path, recipient_email)
+    send_email(doc_path, recipient_email)
     print()
     print("=" * 60)
     print("✅ 今日任务完成！")
