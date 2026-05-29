@@ -140,8 +140,9 @@ def generate_word_document(papers, folder_path):
     title = doc.add_heading('AI & Agent 每日论文', 0)
     title.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
     
-    doc.add_paragraph(f"日期：{date_str}")
-    doc.add_paragraph(f"研究方向：{", ".join(config['research_areas'])}")
+    doc.add_paragraph(f'日期：{date_str}')
+    research_areas_str = ", ".join(config['research_areas'])
+    doc.add_paragraph(f'研究方向：{research_areas_str}')
     doc.add_paragraph()
     
     for idx, paper in enumerate(papers[:config['max_papers']], 1):
